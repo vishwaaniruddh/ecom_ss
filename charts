@@ -1,0 +1,264 @@
+<?
+include('config.php');
+
+error_reporting(1);
+require 'phpmail/src/PHPMailer.php';
+require 'phpmail/src/SMTP.php';
+require 'phpmail/src/Exception.php';
+
+
+// Today Cal
+$today_sqlgold = mysqli_query($conn,"select count(mem_id) as today from Members where MembershipDetails_Level=1 and DATE(entryDate) = DATE(NOW())");
+$today_sqlgold_result = mysqli_fetch_assoc($today_sqlgold);
+$today_gold = $today_sqlgold_result['today'];
+
+$today_sqlplat = mysqli_query($conn,"select count(mem_id) as today from Members where MembershipDetails_Level=2 and DATE(entryDate) = DATE(NOW())");
+$today_sqlplat_result = mysqli_fetch_assoc($today_sqlplat);
+$today_plat = $today_sqlplat_result['today'];
+$today = $today_plat+$today_gold ;
+// End Today Cal
+
+
+
+// Month Cal
+$monthsqlgold = mysqli_query($conn,"SELECT count(mem_id) as monthss FROM Members WHERE MembershipDetails_Level=1 and MONTH(entryDate) = MONTH(CURDATE()) and YEAR(entryDate) = YEAR(CURDATE())");
+$monthsqlgold_result = mysqli_fetch_assoc($monthsqlgold);
+$monthgold = $monthsqlgold_result['monthss'];
+
+$monthsqlplat = mysqli_query($conn,"SELECT count(mem_id) as monthss FROM Members WHERE MembershipDetails_Level=2 and MONTH(entryDate) = MONTH(CURDATE()) and YEAR(entryDate) = YEAR(CURDATE())");
+$monthsqlplat_result = mysqli_fetch_assoc($monthsqlplat);
+$monthplat = $monthsqlplat_result['monthss'];
+
+$month = $monthgold+$monthplat ;
+
+
+
+
+// Year Cal
+
+$date1 = '2021-04-01'; 
+$date2 = date('Y-m-d') ;
+
+$year_sqlgold = mysqli_query($conn,"SELECT count(mem_id) as years_count FROM Members WHERE MembershipDetails_Level=1 and CAST(entryDate AS DATE) >= '".$date1."' and CAST(entryDate AS DATE) <= '".$date2."'");
+$year_sqlgold_result = mysqli_fetch_assoc($year_sqlgold);
+$year_sqlgold_count = $year_sqlgold_result['years_count'];
+
+
+$year_sqlplat = mysqli_query($conn,"SELECT count(mem_id) as years_count FROM Members WHERE MembershipDetails_Level=2 and CAST(entryDate AS DATE) >= '".$date1."' and CAST(entryDate AS DATE) <= '".$date2."'");
+$year_sqlplat_result = mysqli_fetch_assoc($year_sqlplat);
+$year_sqlplat_count = $year_sqlplat_result['years_count'];
+$yearscount = $year_sqlplat_count + $year_sqlgold_count ; 
+
+
+
+
+
+
+$EmailSubject1="Clubfourpoints Daily MIS";
+
+
+$chartConfig1 = '{
+  "type": "outlabeledPie",
+  "data": {
+    "labels": ["GOLD", "PLATINUM"],
+    "datasets": [{
+        "backgroundColor": ["#f6d036", "#c5c6c8"],
+        "data": ['. $year_sqlgold_count .','. $year_sqlplat_count .']
+    }]
+  },
+  "options": {
+    "plugins": {
+      "legend": false,
+      "outlabels": {
+        "text": "%l %p",
+        "color": "white",
+        "stretch": 35,
+        "font": {
+          "resizable": true,
+          "minSize": 12,
+          "maxSize": 18
+        }
+      }
+    }
+  }
+}';
+
+
+ $chartUrl1 = 'https://quickchart.io/chart?w=500&h=300&c=' . urlencode($chartConfig1);
+
+
+
+
+$chartConfig2 = '{
+  type: "doughnut",
+  data: {
+    datasets: [
+      {
+        data: ['.$year_sqlgold_count.', '.$year_sqlplat_count.'],
+        backgroundColor: [ "#f6d036", "#c5c6c8"],
+      },
+    ],
+    labels: ["GOLD", "PLATINUM"],
+  },
+  options: {
+    plugins: {
+      datalabels: {
+        enabled: true,
+    formatter: function (val) {
+      return val + "%"
+    }
+      }
+    }
+  }
+}';
+
+
+$chartUrl2 = 'https://quickchart.io/chart?w=500&h=300&c=' . urlencode($chartConfig2);
+
+
+
+
+
+$message1 ='';
+        $message1 .='<table style="text-align:center;" width="30%" align="center" border="1"> 
+        <tr style="border:none;">
+        <td style="padding:0;width:100px;"></td>
+        <td style="padding:0 ;width:200px;" colspan="3" style="background:yellow;">Enrollments Update</td>
+        </tr>
+        
+        <tr style="border:none">
+        <td style="padding:0"></td>
+        <td style="padding:0" width="80">Gold</td>
+        <td style="padding:0" width="80">Platinum</td>
+        <td style="padding:0" width="80">Total</td>
+        </tr>
+        
+        <tr style="border:none">
+        <td style="padding:0">Today</td>
+        <td style="padding:0">'.$today_gold.'</td>
+        <td style="padding:0">'.$today_plat.'</td>
+        <td style="padding:0">'.$today.'</td>
+        </tr>
+        
+        <tr style="border:none">
+        <td style="padding:0">Month To Date</td>
+        <td style="padding:0">'.$monthgold.'</td>
+        <td style="padding:0">'.$monthplat.'</td>
+        <td style="padding:0">'.$month.'</td>
+        </tr>
+        
+        <tr style="border:none">
+        <td style="padding:0">Year To Date</td>
+        <td style="padding:0">'.$year_sqlgold_count.'</td>
+        <td style="padding:0">'.$year_sqlplat_count.'</td>
+        <td style="padding:0">'.$yearscount.'</td>
+        </tr>
+        </table>'; 
+        
+
+
+$message1 .= '<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+      google.charts.load("current", {packages:["corechart"]});
+      google.charts.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable([
+          ["Task", "Hours per Day"],
+          ["Gold",     7],
+          ["Platinum", 7]
+        ]);
+
+        var options = {
+            pieHole: 0.4,
+            slices: {
+            0: { color: "#f6d036" },
+            1: { color: "#c5c6c8" }
+          },
+          legend: "none"
+        };
+
+        var chart = new google.visualization.PieChart(document.getElementById("donutchart"));
+        chart.draw(data, options);
+        console.log(chart.getImageURI());
+      document.getElementById("img").src= chart.getImageURI();
+      }
+
+
+
+
+    </script>
+';
+
+
+$message1 .='<br><br><br><br><table width="50%" align="center">
+
+<tr>
+<td>
+
+</td>
+</tr>
+
+<tr>
+
+<td>
+<div id="donutchart" style="width:100%;height:700;display:none;"></div>
+<img id="img" src="" style="width:100%">
+
+</td>
+</tr>
+</table>';
+
+
+
+
+
+
+
+
+
+
+
+echo $message1; 
+?>
+
+
+<?
+$leadsmail1="contactus@clubfourpoints.com";
+
+$mailheader1 .= "Reply-To: ".$leadsmail1."\r\n"; 
+$mailheader1 .= "Return-Path: ".$leadsmail1."\r\n";
+$mailheader1 .= "From: ".$leadsmail1."\r\n"; 
+$mailheader1 .= "Organization: Sender Organization\r\n";
+$mailheader1 .= "MIME-Version: 1.0\r\n";
+$mailheader1 .= "Content-type: text/plain; charset=iso-8859-1\r\n";
+$mailheader1 .= "X-Priority: 3\r\n";
+$mailheader1 .= "X-Mailer: PHP". phpversion() ."\r\n";
+
+
+
+
+
+    $mail1 = new PHPMailer\PHPMailer\PHPMailer();
+    //Server settings
+    //$mail->SMTPDebug = 2;                                 // Enable verbose debug output
+    $mail1->isSMTP();                                      // Set mailer to use SMTP
+    $mail1->Host = 'sarmicrosystems.in';  // Specify main and backup SMTP servers
+    $mail1->SMTPAuth = true;                               // Enable SMTP authentication
+    $mail1->Username = 'ram@sarmicrosystems.in';                 // SMTP username
+    $mail1->Password = 'ram1234*';                           // SMTP password
+    $mail1->SMTPSecure = 'tls';                            // Enable TLS encryption, `ssl` also accepted
+    $mail1->Port = 587;                                    // TCP port to connect to
+
+    //Recipients
+    $mail1->setFrom('contactus@clubfourpoints.com','Club Four Points');
+    $mail1->addBCC('vishwaaniruddh@gmail.com'); 
+    $mail1->mailheader=$mailheader1;// Add a recipient
+    // $mail1->addCC('hiteshgunwani@gmail.com');
+    
+    $mail1->isHTML(true);                                  // Set email format to HTML
+    $mail1->Subject = $EmailSubject1."\r\n";
+    $mail1->Body    = $message1."\r\n";
+    // $mail1->send();
+    
+
+?>
